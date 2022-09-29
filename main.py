@@ -1,11 +1,16 @@
 import numpy as np
 import h5py
 import matplotlib.pyplot as plt
-from utils import sigmoid, sigmoid_backward, relu, relu_backward
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import datetime
+from bq_helper import BigQueryHelper
+import warnings
 
-plt.rcParams['figure.figsize'] = (5.0, 4.0)  # set default size of plots
-plt.rcParams['image.interpolation'] = 'nearest'
-plt.rcParams['image.cmap'] = 'gray'
+warnings.filterwarnings('ignore')
+
+from utils import sigmoid, sigmoid_backward, relu, relu_backward
 
 
 def initialize_parameters_deep(layer_dims):
@@ -139,6 +144,31 @@ def update_parameters(parameters, grads, learning_rate):
         parameters["b" + str(l + 1)] = parameters["b" + str(l + 1)] - learning_rate * grads["db" + str(l + 1)]
     return parameters
 
+
+plt.rcParams['figure.figsize'] = (5.0, 4.0)  # set default size of plots
+plt.rcParams['image.interpolation'] = 'nearest'
+plt.rcParams['image.cmap'] = 'gray'
+
+helper = BigQueryHelper('bigquery-public-data', 'noaa_gsod')
+years = range(2008, 2018)
+
+sql = '''
+SELECT
+    year, mo, da, temp, min, max, prcp, stn, b.lat,b.lon,tornado_funnel_cloud, wdsp, gust, slp, dewp, thunder, hail, snow_ice_pellets, fog, rain_drizzle, sndp
+
+FROM
+    `bigquery-public-data.noaa_gsod.gsod{}` a
+
+INNER JOIN
+`bigquery-public-data.noaa_gsod.stations` b ON a.stn = b.usaf AND a.wban=b.wban
+
+WHERE 
+    b.country = 'US'
+    AND b.state = 'TX' OR b.state = 'OK' OR b.state = 'LA' OR b.state = 'MISS' OR b.state = 'AL' OR b.state = 'AR' OR b.state = 'TN' OR b.state = 'MO' OR b.state='KY' OR b.state= 'IL' OR b.state = 'IN'
+ '''
+
+weather = [helper.query_to_pandas(sql.format(i)) for i in years]
+weather = pd.concat(weather)
 
 parameters = initialize_parameters_deep()
 inputs = 0
