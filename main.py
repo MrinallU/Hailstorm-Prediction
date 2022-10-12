@@ -9,8 +9,50 @@ from bq_helper import BigQueryHelper
 import warnings
 
 warnings.filterwarnings('ignore')
+import os
+for dirname, _, filenames in os.walk('/kaggle/input'):
+    for filename in filenames:
+        print(os.path.join(dirname, filename))
 
-from utils import sigmoid, sigmoid_backward, relu, relu_backward
+def sigmoid(Z):
+    A = 1 / (1 + np.exp(-Z))
+    cache = Z
+
+    return A, cache
+
+
+def relu(Z):
+    A = np.maximum(0, Z)
+
+    assert (A.shape == Z.shape)
+
+    cache = Z
+    return A, cache
+
+
+def relu_backward(dA, cache):
+
+    Z = cache
+    dZ = np.array(dA, copy=True)  # just converting dz to a correct object.
+
+    # When z <= 0, you should set dz to 0 as well.
+    dZ[Z <= 0] = 0
+
+    assert (dZ.shape == Z.shape)
+
+    return dZ
+
+
+def sigmoid_backward(dA, cache):
+    Z = cache
+
+    s = 1 / (1 + np.exp(-Z))
+    dZ = dA * s * (1 - s)
+
+    assert (dZ.shape == Z.shape)
+
+    return dZ
+
 
 
 def initialize_parameters_deep(layer_dims):
@@ -28,7 +70,6 @@ def initialize_parameters_deep(layer_dims):
     return parameters
 
 
-# GRADED FUNCTION: linear_activation_forward
 
 def linear_activation_forward(A_prev, W, b, activation):
     Z = np.dot(W, A_prev) + b
@@ -43,7 +84,6 @@ def linear_activation_forward(A_prev, W, b, activation):
     return A, cache
 
 
-# GRADED FUNCTION: L_model_forward
 
 def L_model_forward(X, parameters):
     caches = []
@@ -73,9 +113,6 @@ def compute_cost(AL, Y):
     assert (cost.shape == ())
 
     return cost
-
-
-# GRADED FUNCTION: linear_backward
 
 def linear_backward(dZ, cache):
     A_prev, W, b = cache
@@ -132,9 +169,6 @@ def L_model_backward(AL, Y, caches):
 
     return grads
 
-
-# GRADED FUNCTION: update_parameters
-
 def update_parameters(parameters, grads, learning_rate):
     L = len(parameters) // 2  # number of layers in the neural network
 
@@ -149,12 +183,13 @@ plt.rcParams['figure.figsize'] = (5.0, 4.0)  # set default size of plots
 plt.rcParams['image.interpolation'] = 'nearest'
 plt.rcParams['image.cmap'] = 'gray'
 
+
 helper = BigQueryHelper('bigquery-public-data', 'noaa_gsod')
-years = range(2008, 2018)
+years = range(2016, 2018)
 
 sql = '''
 SELECT
-    year, mo, da, temp, min, max, prcp, stn, b.lat,b.lon,tornado_funnel_cloud, wdsp, gust, slp, dewp, thunder, hail, snow_ice_pellets, fog, rain_drizzle, sndp
+    year, mo, da, temp, dewp, slp, visib, wdsp, mxpsd, gust, max, min, prcp, sndp, fog, rain_drizzle, snow_ice_pellets, thunder, hail
 
 FROM
     `bigquery-public-data.noaa_gsod.gsod{}` a
@@ -164,16 +199,23 @@ INNER JOIN
 
 WHERE 
     b.country = 'US'
-    AND b.state = 'TX' OR b.state = 'OK' OR b.state = 'LA' OR b.state = 'MISS' OR b.state = 'AL' OR b.state = 'AR' OR b.state = 'TN' OR b.state = 'MO' OR b.state='KY' OR b.state= 'IL' OR b.state = 'IN'
+    AND b.state = 'TX' OR b.state = 'KS'
  '''
 
-weather = [helper.query_to_pandas(sql.format(i)) for i in years]
+weather = [helper.query_to_pandas_safe(sql.format(i), max_gb_scanned=1) for i in years]
 weather = pd.concat(weather)
+lays = []
+for i in range(3):
+    lays.append(i+2)
+parameters = initialize_parameters_deep(lays)
+print(parameters)
 
-parameters = initialize_parameters_deep()
-inputs = 0
-results = 0
-for i in range(100):  # Training Iterations
-    AL, caches = L_model_forward(inputs, parameters)
-    grads = L_model_backward(AL, results, caches)
-    parameters = update_parameters(parameters, grads, 1.2)
+for i in weather:
+    print(i)
+# inputs = 0
+# results = 0
+# print("done")
+# # for i in range(100):  # Training Iterations
+# #     AL, caches = L_model_forward(inputs, parameters)
+# #     grads = L_model_backward(AL, results, caches)
+# #     parameters = update_parameters(parameters, grads, 1.2)
