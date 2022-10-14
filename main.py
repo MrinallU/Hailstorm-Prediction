@@ -69,20 +69,29 @@ def initialize_parameters_deep(layer_dims):
 
     return parameters
 
-
+def linear_forward(A, W, b):
+    Z = W.dot(A) + b
+    
+    assert(Z.shape == (W.shape[0], A.shape[1]))
+    cache = (A, W, b)
+    
+    return Z, cache
 
 def linear_activation_forward(A_prev, W, b, activation):
-    Z = np.dot(W, A_prev) + b
     if activation == "sigmoid":
+        # Inputs: "A_prev, W, b". Outputs: "A, activation_cache".
+        Z, linear_cache = linear_forward(A_prev, W, b)
         A, activation_cache = sigmoid(Z)
-
+    
     elif activation == "relu":
+        # Inputs: "A_prev, W, b". Outputs: "A, activation_cache".
+        Z, linear_cache = linear_forward(A_prev, W, b)
         A, activation_cache = relu(Z)
+    
     assert (A.shape == (W.shape[0], A_prev.shape[1]))
-    cache = (Z, activation_cache)
+    cache = (linear_cache, activation_cache)
 
     return A, cache
-
 
 
 def L_model_forward(X, parameters):
@@ -149,7 +158,7 @@ def L_model_backward(AL, Y, caches):
     m = AL.shape[1]
     Y = Y.reshape(AL.shape)  # after this line, Y is the same shape as AL
 
-    print(compute_cost(AL, Y))
+    print("Cost",compute_cost(AL, Y))
 
     dAL = - (np.divide(Y, AL) - np.divide(1 - Y, 1 - AL))
 
@@ -183,9 +192,15 @@ plt.rcParams['figure.figsize'] = (5.0, 4.0)  # set default size of plots
 plt.rcParams['image.interpolation'] = 'nearest'
 plt.rcParams['image.cmap'] = 'gray'
 
+lays = [19]
+for i in reversed(range(3)):
+    lays.append(i+2)
+lays.append(1)
+parameters = initialize_parameters_deep(lays)
 
 helper = BigQueryHelper('bigquery-public-data', 'noaa_gsod')
-years = range(2016, 2018)
+yearTraining = range(2015, 2018)
+yearValidation = range(2013,2014)
 
 sql = '''
 SELECT
@@ -202,20 +217,36 @@ WHERE
     AND b.state = 'TX' OR b.state = 'KS'
  '''
 
-weather = [helper.query_to_pandas_safe(sql.format(i), max_gb_scanned=1) for i in years]
-weather = pd.concat(weather)
-lays = []
-for i in range(3):
-    lays.append(i+2)
-parameters = initialize_parameters_deep(lays)
-print(parameters)
+weatherValidation = [helper.query_to_pandas_safe(sql.format(i), max_gb_scanned=1) for i in yearValidation]
+weatherTraining = [helper.query_to_pandas_safe(sql.format(i), max_gb_scanned=1) for i in yearTraining]
 
-for i in weather:
-    print(i)
-# inputs = 0
-# results = 0
-# print("done")
-# # for i in range(100):  # Training Iterations
-# #     AL, caches = L_model_forward(inputs, parameters)
-# #     grads = L_model_backward(AL, results, caches)
-# #     parameters = update_parameters(parameters, grads, 1.2)
+weatherValidation = pd.concat(weatherValidation)
+weatherTraining = pd.concat(weatherTraining)
+for i, g in weatherValidation.groupby('hail'):
+    globals()['df_' + str(i)] =  g
+
+df_0.drop(columns=['hail'])
+df_0.to_numpy()
+df_0 = df_0.T
+df_0 = np.asarray(df_0, dtype=np.float32)
+
+df_1.drop(columns=['hail'])
+df_1.to_numpy()
+df_1 = df_1.T
+df_1 = np.asarray(df_1, dtype=np.float32)
+
+results = weatherTraining.loc[:,'hail']
+results.to_numpy()
+results = np.asarray(results, dtype=np.float32)
+
+weatherTraining.drop(columns=['hail'])
+weatherTraining.to_numpy()
+weatherTraining = weatherTraining.T
+weatherTraining = np.asarray(weatherTraining, dtype=np.float32)
+print(weatherTraining)
+
+for i in range(100):  # Training Iterations
+    AL, caches = L_model_forward(weatherTraining, parameters)
+#     print(AL)
+    grads = L_model_backward(AL, results, caches)
+    parameters = update_parameters(parameters, grads, 0.2)
