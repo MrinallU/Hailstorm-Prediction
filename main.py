@@ -163,7 +163,7 @@ def L_model_backward(AL, Y, caches):
     dAL = - (np.divide(Y, AL) - np.divide(1 - Y, 1 - AL))
 
     current_cache = caches[L - 1]
-    grads["dA" + str(L - 1)], grads["dW" + str(L)], grads["db" + str(L)] = linear_activation_backward(dAL,
+    grads["dA" + str(L)], grads["dW" + str(L)], grads["db" + str(L)] = linear_activation_backward(dAL,
                                                                                                       current_cache,
                                                                                                       "sigmoid")
     for l in reversed(range(L - 1)):
